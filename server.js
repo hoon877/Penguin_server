@@ -12,107 +12,107 @@ var Rooms = [];
 var Users = [];
 
 io.on("connection", (socket) => {
-    Users[socket.id] = {
-        id: socket.id,
-        nickname: "",
-        Room: "",
-      }
+    // Users[socket.id] = {
+    //     id: socket.id,
+    //     nickname: "",
+    //     Room: "",
+    //   }
 
-      socket.on('LoginCheck', name => {
-        //접속하기 버튼을 누르면 입장합니다.
+    //   socket.on('LoginCheck', name => {
+    //     //접속하기 버튼을 누르면 입장합니다.
     
-        var check = true;
-        //변수 하나를 생성
+    //     var check = true;
+    //     //변수 하나를 생성
     
-        for (var k in Users) {
-          if (Users[k].nickname == name) {
-            check = false;
-            break;
-          }
-        }
-        //닉네임이 있는지 없는지 파악합니다.
+    //     for (var k in Users) {
+    //       if (Users[k].nickname == name) {
+    //         check = false;
+    //         break;
+    //       }
+    //     }
+    //     //닉네임이 있는지 없는지 파악합니다.
     
-        if (check) {
-          //닉네임이 없다면 생성
-          Users[socket.id].nickname = name
-          //nickname 설정
-          console.log(name + ": 로비진입 성공!")
-          socket.emit('Login')
-        }
-    });
+    //     if (check) {
+    //       //닉네임이 없다면 생성
+    //       Users[socket.id].nickname = name
+    //       //nickname 설정
+    //       console.log(name + ": 로비진입 성공!")
+    //       socket.emit('Login')
+    //     }
+    // });
 
-    function RoomResetGo() {
-        //모든 방을 보내는 함수입니다.
-        var roomcheck = [];
+    // function RoomResetGo() {
+    //     //모든 방을 보내는 함수입니다.
+    //     var roomcheck = [];
     
-        for (room in Rooms) {
+    //     for (room in Rooms) {
         
-          roomcheck.push({
-            currentCnt: Rooms[room].currentCnt,
-            RoomMaxCnt: Rooms[room].maxCnt,
-            name: room
-          })
-          //currentCnt , RoomMaxCnt,name 이라는 데이터를 보냅니다.
+    //       roomcheck.push({
+    //         currentCnt: Rooms[room].currentCnt,
+    //         RoomMaxCnt: Rooms[room].maxCnt,
+    //         name: room
+    //       })
+    //       //currentCnt , RoomMaxCnt,name 이라는 데이터를 보냅니다.
     
-        }
+    //     }
         
-        io.emit('RoomReset', roomcheck)
-      }
+    //     io.emit('RoomReset', roomcheck)
+    //   }
     
 
-    console.log("a user connected");
+    // console.log("a user connected");
 
-    socket.on("getRoomList", () => {
-        console.log("getRoomList event received");
-        socket.emit("roomList", {rooms : roomList});
-    });
+    // socket.on("getRoomList", () => {
+    //     console.log("getRoomList event received");
+    //     socket.emit("roomList", {rooms : roomList});
+    // });
     
-    socket.on('CreateCheck', (data, data2) => {
+    // socket.on('CreateCheck', (data, data2) => {
 
-          //방생성 성공
-          socket.join(data);
-          //들어갑니다.
+    //       //방생성 성공
+    //       socket.join(data);
+    //       //들어갑니다.
     
-          Users[socket.id].Room = data
-    
-    
-          Rooms[data] = {
-            currentCnt: 1,
-            maxCnt: Number(data2)
-          }
-    
-          console.log(data + ": 방진입 성공!")
-    
-          socket.emit('Create')
-          //성공했다고 이벤트를 보냅니다.
+    //       Users[socket.id].Room = data
     
     
-          RoomResetGo()
-          //방 목록을 전부 보내는 이벤트를 실행합니다.
+    //       Rooms[data] = {
+    //         currentCnt: 1,
+    //         maxCnt: Number(data2)
+    //       }
+    
+    //       console.log(data + ": 방진입 성공!")
+    
+    //       socket.emit('Create')
+    //       //성공했다고 이벤트를 보냅니다.
+    
+    
+    //       RoomResetGo()
+    //       //방 목록을 전부 보내는 이벤트를 실행합니다.
         
-     });
+    //  });
 
-     socket.on('JoinRoomCheck', (roomname) => {
+    //  socket.on('JoinRoomCheck', (roomname) => {
 
-        if (roomname in Rooms && Rooms[roomname].currentCnt < Rooms[roomname].maxCnt) {
+    //     if (roomname in Rooms && Rooms[roomname].currentCnt < Rooms[roomname].maxCnt) {
     
-          socket.join(roomname)
-          socket.emit('Join', roomname)
-          Users[socket.id].Room = roomname
-          Rooms[roomname].currentCnt++
+    //       socket.join(roomname)
+    //       socket.emit('Join', roomname)
+    //       Users[socket.id].Room = roomname
+    //       Rooms[roomname].currentCnt++
     
-          var check = []
-          socket.adapter.rooms.get(roomname).forEach((a) => {
-            check.push(Users[a].nickname)
-          })
+    //       var check = []
+    //       socket.adapter.rooms.get(roomname).forEach((a) => {
+    //         check.push(Users[a].nickname)
+    //       })
     
-          socket.to(roomname).emit('PlayerReset', check)
-          RoomResetGo()
-        }
-        else {
-          socket.emit('JoinFailed')
-        }
-      });
+    //       socket.to(roomname).emit('PlayerReset', check)
+    //       RoomResetGo()
+    //     }
+    //     else {
+    //       socket.emit('JoinFailed')
+    //     }
+    //   });
 
     socket.on("createRoom", function() {
         console.log("createRoom event received");
@@ -123,7 +123,10 @@ io.on("connection", (socket) => {
         players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2, isAlive: true };
         roomList.push(roomId); // 방 리스트에 추가
         activeRooms.add(roomId);
-        console.log('방 생성됨: ' + roomId);
+        // console.log('방 생성됨: ' + roomId);
+        // console.log('현재 방 리스트: ', roomList);
+        // console.log('socket id : ' + socket.id);
+        // console.log(io.sockets.adapter.rooms.get(roomId));
     });
 
     socket.on("joinRoom", function({ roomId }) {
@@ -131,9 +134,12 @@ io.on("connection", (socket) => {
             socket.emit("errorJoin", { message: "잘못된 방 ID입니다." });
             return;
         }
-
+        console.log("adapter room id : ", io.sockets.adapter.rooms.get(roomId));
         const room = io.sockets.adapter.rooms.get(roomId);
         console.log("joinRoom event received", roomId, room);
+        console.log('socket id : ' + socket.id);
+        console.log('room id : ' + roomId);
+        console.log('room : ' + room);
 
         if (room) {
             socket.join(roomId);

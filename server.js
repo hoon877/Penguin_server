@@ -8,7 +8,7 @@ const TICK_RATE = 20; // 초당 20번
 const TICK_INTERVAL = 1000 / TICK_RATE;
 const io = new Server(3000);
 const activeRooms = new Set();
-var rooms = [];
+var Rooms = [];
 var Users = [];
 
 io.on("connection", (socket) => {
@@ -41,12 +41,78 @@ io.on("connection", (socket) => {
         }
     });
 
+    function RoomResetGo() {
+        //모든 방을 보내는 함수입니다.
+        var roomcheck = [];
+    
+        for (room in Rooms) {
+        
+          roomcheck.push({
+            currentCnt: Rooms[room].currentCnt,
+            RoomMaxCnt: Rooms[room].maxCnt,
+            name: room
+          })
+          //currentCnt , RoomMaxCnt,name 이라는 데이터를 보냅니다.
+    
+        }
+        
+        io.emit('RoomReset', roomcheck)
+      }
+    
+
     console.log("a user connected");
 
     socket.on("getRoomList", () => {
         console.log("getRoomList event received");
         socket.emit("roomList", {rooms : roomList});
     });
+    
+    socket.on('CreateCheck', (data, data2) => {
+
+          //방생성 성공
+          socket.join(data);
+          //들어갑니다.
+    
+          Users[socket.id].Room = data
+    
+    
+          Rooms[data] = {
+            currentCnt: 1,
+            maxCnt: Number(data2)
+          }
+    
+          console.log(data + ": 방진입 성공!")
+    
+          socket.emit('Create')
+          //성공했다고 이벤트를 보냅니다.
+    
+    
+          RoomResetGo()
+          //방 목록을 전부 보내는 이벤트를 실행합니다.
+        
+     });
+
+     socket.on('JoinRoomCheck', (roomname) => {
+
+        if (roomname in Rooms && Rooms[roomname].currentCnt < Rooms[roomname].maxCnt) {
+    
+          socket.join(roomname)
+          socket.emit('Join', roomname)
+          Users[socket.id].Room = roomname
+          Rooms[roomname].currentCnt++
+    
+          var check = []
+          socket.adapter.rooms.get(roomname).forEach((a) => {
+            check.push(Users[a].nickname)
+          })
+    
+          socket.to(roomname).emit('PlayerReset', check)
+          RoomResetGo()
+        }
+        else {
+          socket.emit('JoinFailed')
+        }
+      });
 
     socket.on("createRoom", function() {
         console.log("createRoom event received");

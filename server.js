@@ -81,6 +81,12 @@ io.on("connection", (socket) => {
             players[socket.id].dirX = dir.x;
             players[socket.id].dirY = dir.y;
         }
+        const roomId = socketRooms.get(socket.id);
+        io.to(roomId).emit("move", {
+            id: socket.id,
+            x: data.x,
+            y: data.y
+        });
     });
 
     socket.on("gameOver", async function(data) {

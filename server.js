@@ -13,15 +13,17 @@ var Users = [];
 
 io.on("connection", (socket) => {
     
-    socket.on("createRoom", function() {
+    socket.on("createRoom", function(data) {
         console.log("createRoom event received");
         const roomId = uuidv4(); // 서버가 생성
-        const maxPlayers = 4;
+        const roomName = data.roomName;
+        const maxPlayers = data.maxPlayers;
         socket.join(roomId);
         socket.emit("createdRoom", { roomId });
         socketRooms.set(socket.id, roomId);
         players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2, isAlive: true };
         roomList.push({
+            roomName: roomName,
             roomId: roomId,
             current: 1,
             max: maxPlayers
@@ -30,28 +32,25 @@ io.on("connection", (socket) => {
     });
 
     socket.on("joinRoom", function({ roomId }) {
-        if (!roomId) {
-            socket.emit("errorJoin", { message: "잘못된 방 ID입니다." });
+        const roomObj = roomList.find(r => r.roomId === roomId);
+
+        if (!roomObj) {
+            socket.emit("errorJoin", { message: "존재하지 않는 방입니다." });
             return;
         }
-        console.log("adapter room id : ", io.sockets.adapter.rooms.get(roomId));
-        const room = io.sockets.adapter.rooms.get(roomId);
-        console.log("joinRoom event received", roomId, room);
-        console.log('socket id : ' + socket.id);
-        console.log('room id : ' + roomId);
-        console.log('room : ' + room);
 
-        if (room) {
-            socket.join(roomId);
-            socket.emit("joinedRoom", { roomId });
-            socketRooms.set(socket.id, roomId);
-            players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2 };
-            // roomList에서 current 값을 증가
-            const roomObj = roomList.find(r => r.roomId === roomId);
-            if (roomObj) roomObj.current++;
-        } else {
-            socket.emit("errorJoin", { message: "존재하지 않는 방입니다." });
+        if (roomObj.current >= roomObj.max) {
+            socket.emit("errorJoin", { message: "방이 가득 찼습니다." });
+            return;
         }
+
+        socket.join(roomId);
+        roomObj.current++;
+
+        socket.emit("joinedRoom", { roomId });
+        console.log("joinedRoom event emitted: ", roomId);
+        socketRooms.set(socket.id, roomId);
+        players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2 };
     });
 
     socket.on("getRoomList", () => {

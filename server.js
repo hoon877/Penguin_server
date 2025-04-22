@@ -81,11 +81,13 @@ io.on("connection", (socket) => {
             players[socket.id].dirX = dir.x;
             players[socket.id].dirY = dir.y;
         }
+        console.log("move event received: ", dir);
+        console.log("socket.id: ", socket.id);
         const roomId = socketRooms.get(socket.id);
         io.to(roomId).emit("move", {
             id: socket.id,
-            x: data.x,
-            y: data.y
+            x: players[socket.id].x,
+            y: players[socket.id].y
         });
     });
 
@@ -154,8 +156,8 @@ setInterval(() => {
 
         // 이동 처리
         const p = players[id];
-        p.x += p.dirX * p.speed;
-        p.y += p.dirY * p.speed;
+        // p.x += p.dirX * p.speed;
+        // p.y += p.dirY * p.speed;
     }
 
     // 각 방에만 해당 상태 전송

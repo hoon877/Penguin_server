@@ -138,6 +138,7 @@ io.on("connection", (socket) => {
         players[targetId].isAlive = false;
     
         io.to(roomId).emit("killed", { victimId: targetId, killerId: socket.id });
+        console.log(`☠ ${socket.id} → ${targetId}`);
     });
 
     socket.on("fishing", (data) => {

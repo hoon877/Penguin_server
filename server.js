@@ -76,13 +76,18 @@ io.on("connection", (socket) => {
     });
 
     socket.on("move", (dir) => {
-        // 방향 정보만 저장 (dir = { x: -1, y: 0 } 등)
+        if (!players[socket.id]) {
+            console.log("⚠️ move 요청, but 플레이어 없음:", socket.id);
+            return;
+        }
+        
         if (players[socket.id]) {  // players 객체가 존재하는 경우에만 처리
-            players[socket.id].dirX = dir.x;
-            players[socket.id].dirY = dir.y;
+            players[socket.id].x = dir.x;
+            players[socket.id].y = dir.y;
         }
         console.log("move event received: ", dir);
         console.log("socket.id: ", socket.id);
+        console.log("players: ", players[socket.id].dirX, players[socket.id].dirY);
         const roomId = socketRooms.get(socket.id);
         io.to(roomId).emit("move", {
             id: socket.id,

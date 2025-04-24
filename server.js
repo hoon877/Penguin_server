@@ -75,6 +75,15 @@ io.on("connection", (socket) => {
         socketRooms.delete(socket.id);
     });
 
+    socket.on("getPlayers", () => {
+        const roomId = socketRooms.get(socket.id);
+        if (!roomId) return;
+    
+        const socketsInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+        console.log("현재 방에 있는 소켓 ID들: ", socketsInRoom);
+        socket.emit("playersInRoom", socketsInRoom); // [ 'abc123', 'def456' ... ]
+    });
+
     socket.on("move", (dir) => {
         if (!players[socket.id]) {
             console.log("⚠️ move 요청, but 플레이어 없음:", socket.id);
@@ -85,9 +94,6 @@ io.on("connection", (socket) => {
             players[socket.id].x = dir.x;
             players[socket.id].y = dir.y;
         }
-        console.log("move event received: ", dir);
-        console.log("socket.id: ", socket.id);
-        console.log("players: ", players[socket.id].dirX, players[socket.id].dirY);
         const roomId = socketRooms.get(socket.id);
         io.to(roomId).emit("move", {
             id: socket.id,
@@ -112,6 +118,9 @@ io.on("connection", (socket) => {
         const roomId = socketRooms.get(socket.id);
         if (roomId) {
             socketRooms.delete(socket.id);  // socketRooms에서 해당 소켓 제거
+            const roomObj = roomList.find(r => r.roomId === roomId);
+            roomObj.current--; // 방의 현재 인원 수 감소
+            console.log(`방 ${roomId}의 현재 인원 수: ${roomObj.current}`);
         }
         delete players[socket.id]; // 플레이어 데이터 삭제
         delete Users[socket.id]; // 사용자 데이터 삭제
@@ -127,6 +136,7 @@ io.on("connection", (socket) => {
         const { targetId } = data;
         const roomId = socketRooms.get(socket.id);
     
+        console.log(`kill 요청: ${socket.id} → ${targetId}, 방: ${roomId}`);
         if (!roomId || !players[targetId] || !players[socket.id]) return;
     
         // 같은 방에 있어야 함
@@ -136,9 +146,9 @@ io.on("connection", (socket) => {
         if (!players[socket.id].isAlive || !players[targetId].isAlive) return;
     
         players[targetId].isAlive = false;
-    
+        console.log(1);
         io.to(roomId).emit("killed", { victimId: targetId, killerId: socket.id });
-        console.log(`☠ ${socket.id} → ${targetId}`);
+        console.log(` ${socket.id} → ${targetId}`);
     });
 
     socket.on("fishing", (data) => {

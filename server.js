@@ -50,7 +50,7 @@ io.on("connection", (socket) => {
         socket.emit("joinedRoom", { roomId });
         console.log("joinedRoom event emitted: ", roomId);
         socketRooms.set(socket.id, roomId);
-        players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2 };
+        players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2, isAlive: true };
     });
 
     socket.on("getRoomList", () => {
@@ -142,12 +142,21 @@ io.on("connection", (socket) => {
         // 같은 방에 있어야 함
         if (socketRooms.get(targetId) !== roomId) return;
     
+        if (!players[socket.id].isAlive) {
+            console.log("🟥 킬 실패: 공격자", socket.id, "는 이미 죽어있음");
+            return;
+        }
+        
+        if (!players[targetId].isAlive) {
+            console.log("🟥 킬 실패: 대상", targetId, "는 이미 죽어있음");
+            return;
+        }
         // 둘 다 살아 있어야 함
         if (!players[socket.id].isAlive || !players[targetId].isAlive) return;
     
         players[targetId].isAlive = false;
-        console.log(1);
         io.to(roomId).emit("killed", { victimId: targetId, killerId: socket.id });
+        console.log("🟩 킬 성공:", socket.id, "→", targetId);
         console.log(` ${socket.id} → ${targetId}`);
     });
 

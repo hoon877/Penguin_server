@@ -75,6 +75,28 @@ io.on("connection", (socket) => {
         socketRooms.delete(socket.id);
     });
 
+    socket.on("startGame", () => {
+        const roomId = socketRooms.get(socket.id);
+        if (!roomId) return;
+    
+        io.to(roomId).emit("gameStarted");
+        console.log(`게임 시작: 방 ${roomId}`);
+    });
+    
+    // 현재 방 인원 요청 처리
+    socket.on("getRoomPlayerCount", () => {
+        const roomId = socketRooms.get(socket.id);
+        if (!roomId) return;
+    
+        const roomObj = roomList.find(r => r.roomId === roomId);
+        if (roomObj) {
+            socket.emit("roomPlayerCount", {
+                current: roomObj.current,
+                max: roomObj.max
+            });
+        }
+    });
+    
     socket.on("getPlayers", () => {
         const roomId = socketRooms.get(socket.id);
         if (!roomId) return;

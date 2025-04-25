@@ -51,6 +51,7 @@ io.on("connection", (socket) => {
         console.log("joinedRoom event emitted: ", roomId);
         socketRooms.set(socket.id, roomId);
         players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2, isAlive: true };
+        broadcastRoomPlayerCount(roomId);
     });
 
     socket.on("getRoomList", () => {
@@ -59,20 +60,6 @@ io.on("connection", (socket) => {
         // 방 목록을 클라이언트로 전송
         socket.emit("roomList", roomList);
         console.log("방 목록 전송됨: ", roomList);
-    });
-
-    socket.on("leaveRoom", function(roomData) {
-        socket.leave(roomData.roomId);
-        socket.emit("exitRoom");
-        socket.to(roomData.roomId).emit("endGame");
-
-        var roomId = socketRooms.get(socket.id);
-        const roomIdx = rooms.indexOf(roomId);
-        if (roomIdx !== -1) {
-            rooms.splice(roomIdx, 1);
-            console.log('방 삭제됨: ' + roomId);
-        }
-        socketRooms.delete(socket.id);
     });
 
     socket.on("startGame", () => {
@@ -86,14 +73,18 @@ io.on("connection", (socket) => {
     // 현재 방 인원 요청 처리
     socket.on("getRoomPlayerCount", () => {
         const roomId = socketRooms.get(socket.id);
-        if (!roomId) return;
-    
+        if (!roomId) {
+            console.log(`[getRoomPlayerCount] roomId 없음: ${socket.id}`);
+            return;
+        }
+
         const roomObj = roomList.find(r => r.roomId === roomId);
         if (roomObj) {
             socket.emit("roomPlayerCount", {
                 current: roomObj.current,
                 max: roomObj.max
             });
+            console.log(`[getRoomPlayerCount] 응답 전송: ${roomObj.current}/${roomObj.max}`);
         }
     });
     
@@ -146,6 +137,32 @@ io.on("connection", (socket) => {
         }
         delete players[socket.id]; // 플레이어 데이터 삭제
         delete Users[socket.id]; // 사용자 데이터 삭제
+        broadcastRoomPlayerCount(roomId);
+    });
+
+    socket.on("leaveRoom", function(roomData) {
+        const roomId = socketRooms.get(socket.id);
+        if (!roomId) return;
+
+        socket.leave(roomId);
+        socket.emit("exitRoom");
+        socket.to(roomId).emit("endGame");
+
+        const roomObj = roomList.find(r => r.roomId === roomId);
+        if (roomObj) {
+            roomObj.current--;
+            // 현재 인원이 0이면 방 삭제
+            if (roomObj.current <= 0) {
+                const idx = roomList.indexOf(roomObj);
+                if (idx !== -1) roomList.splice(idx, 1);
+                console.log(`🗑 방 삭제됨: ${roomId}`);
+            }
+        }
+
+        socketRooms.delete(socket.id);
+        delete players[socket.id];
+        delete Users[socket.id]; // 사용자 데이터 삭제
+        broadcastRoomPlayerCount(roomId);
     });
 
     socket.on("reconnectToRoom", (data) => {
@@ -185,6 +202,16 @@ io.on("connection", (socket) => {
     socket.on("fishing", (data) => {
         // TODO: fishing 이벤트 처리 로직 구현
     });
+
+    function broadcastRoomPlayerCount(roomId) {
+        const roomObj = roomList.find(r => r.roomId === roomId);
+        if (!roomObj) return;
+    
+        io.to(roomId).emit("roomPlayerCount", {
+            current: roomObj.current,
+            max: roomObj.max
+        });
+    }
 });
 
 setInterval(() => {

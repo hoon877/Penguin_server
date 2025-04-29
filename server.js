@@ -133,7 +133,11 @@ io.on("connection", (socket) => {
             socketRooms.delete(socket.id);  // socketRooms에서 해당 소켓 제거
             const roomObj = roomList.find(r => r.roomId === roomId);
             roomObj.current--; // 방의 현재 인원 수 감소
-            console.log(`방 ${roomId}의 현재 인원 수: ${roomObj.current}`);
+            if (roomObj.current <= 0) {
+                const idx = roomList.indexOf(roomObj);
+                if (idx !== -1) roomList.splice(idx, 1);
+                console.log(`🗑 방 삭제됨: ${roomId}`);
+            }
         }
         delete players[socket.id]; // 플레이어 데이터 삭제
         delete Users[socket.id]; // 사용자 데이터 삭제

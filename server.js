@@ -26,7 +26,8 @@ io.on("connection", (socket) => {
             roomName: roomName,
             roomId: roomId,
             current: 1,
-            max: maxPlayers
+            max: maxPlayers,
+            hostId: socket.id
         }); // 방 리스트에 추가
         activeRooms.add(roomId);
     });
@@ -47,7 +48,7 @@ io.on("connection", (socket) => {
         socket.join(roomId);
         roomObj.current++;
 
-        socket.emit("joinedRoom", { roomId });
+        socket.emit("joinedRoom", { roomId, hostId: roomObj.hostId });
         console.log("joinedRoom event emitted: ", roomId);
         socketRooms.set(socket.id, roomId);
         players[socket.id] = { x: 0, y: 0, dirX: 0, dirY: 0, speed: 2, isAlive: true };
@@ -66,6 +67,15 @@ io.on("connection", (socket) => {
         const roomId = socketRooms.get(socket.id);
         if (!roomId) return;
     
+        const roomObj = roomList.find(r => r.roomId === roomId);
+        if (!roomObj) return;
+
+        // ⭐ 방장만 시작 가능
+        if (roomObj.hostId !== socket.id) {
+            socket.emit("errorStart", { message: "방장만 시작할 수 있습니다." });
+            return;
+        }
+
         io.to(roomId).emit("gameStarted");
         console.log(`게임 시작: 방 ${roomId}`);
     });
@@ -132,11 +142,19 @@ io.on("connection", (socket) => {
         if (roomId) {
             socketRooms.delete(socket.id);  // socketRooms에서 해당 소켓 제거
             const roomObj = roomList.find(r => r.roomId === roomId);
-            roomObj.current--; // 방의 현재 인원 수 감소
-            if (roomObj.current <= 0) {
-                const idx = roomList.indexOf(roomObj);
-                if (idx !== -1) roomList.splice(idx, 1);
-                console.log(`🗑 방 삭제됨: ${roomId}`);
+            if (roomObj) {
+                roomObj.current--;
+
+                // ⭐ 방장 나감 → 새로운 방장 지정
+                if (roomObj.hostId === socket.id) {
+                    assignNewHost(roomId);
+                }
+
+                if (roomObj.current <= 0) {
+                    const idx = roomList.indexOf(roomObj);
+                    if (idx !== -1) roomList.splice(idx, 1);
+                    console.log(`🗑 방 삭제됨: ${roomId}`);
+                }
             }
         }
         delete players[socket.id]; // 플레이어 데이터 삭제
@@ -155,6 +173,12 @@ io.on("connection", (socket) => {
         const roomObj = roomList.find(r => r.roomId === roomId);
         if (roomObj) {
             roomObj.current--;
+            
+            // ⭐ 방장 나감 → 새로운 방장 지정
+            if (roomObj.hostId === socket.id) {
+                assignNewHost(roomId);
+            }
+
             // 현재 인원이 0이면 방 삭제
             if (roomObj.current <= 0) {
                 const idx = roomList.indexOf(roomObj);
@@ -215,6 +239,18 @@ io.on("connection", (socket) => {
             current: roomObj.current,
             max: roomObj.max
         });
+    }
+
+    function assignNewHost(roomId) {
+        const roomObj = roomList.find(r => r.roomId === roomId);
+        const sockets = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+
+        if (roomObj && sockets.length > 0) {
+            const newHostId = sockets[0]; // 첫 번째 유저를 방장으로 승계
+            roomObj.hostId = newHostId;
+            io.to(roomId).emit("hostChanged", { hostId: newHostId });
+            console.log(`🟢 방장 승계: ${newHostId}`);
+        }
     }
 });
 

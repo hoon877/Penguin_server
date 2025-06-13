@@ -112,6 +112,11 @@ io.on("connection", (socket) => {
             console.log("⚠️ move 요청, but 플레이어 없음:", socket.id);
             return;
         }
+        // 🟥 죽은 플레이어의 move 무시
+        if (!players[socket.id].isAlive) {
+            console.log(`🛑 죽은 플레이어 move 차단: ${socket.id}`);
+            return;
+        }
         
         if (players[socket.id]) {  // players 객체가 존재하는 경우에만 처리
             players[socket.id].x = dir.x;
@@ -121,7 +126,8 @@ io.on("connection", (socket) => {
         io.to(roomId).emit("move", {
             id: socket.id,
             x: players[socket.id].x,
-            y: players[socket.id].y
+            y: players[socket.id].y,
+            flipX: dir.flipX ?? false
         });
     });
 
@@ -225,6 +231,24 @@ io.on("connection", (socket) => {
         io.to(roomId).emit("killed", { victimId: targetId, killerId: socket.id });
         console.log("🟩 킬 성공:", socket.id, "→", targetId);
         console.log(` ${socket.id} → ${targetId}`);
+    });
+
+    socket.on("eatCorpse", (data) => {
+        const targetId = data.targetId;
+        const roomId = socketRooms.get(socket.id);
+
+        if (!roomId) return;
+        if (!players[targetId]) return;
+
+        // 실제로 죽은 플레이어만 먹을 수 있음
+        if (players[targetId].isAlive) {
+            console.log("🟥 시체 아님 (isAlive=true):", targetId);
+            return;
+        }
+
+        // 시체 먹기 처리 (여기선 단순히 알림만)
+        io.to(roomId).emit("corpseEaten", { targetId });
+        console.log(`🟢 ${targetId}의 시체가 먹힘`);
     });
 
     socket.on("fishing", (data) => {

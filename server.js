@@ -233,6 +233,20 @@ io.on("connection", (socket) => {
         console.log(` ${socket.id} → ${targetId}`);
     });
 
+    socket.on("hungerDeath", (data) => {
+        const playerId = socket.id; // 또는 data.playerId
+        const roomId = socketRooms.get(socket.id);
+        if (!roomId || !players[playerId]) return;
+
+        console.log(`☠️ 배고픔으로 사망: ${playerId}`);
+        players[playerId].isAlive = false;
+
+        io.to(roomId).emit("killed", {
+            victimId: playerId,
+            killerId: null // 자연사이므로 killer 없음
+        });
+    });
+
     socket.on("eatCorpse", (data) => {
         const targetId = data.targetId;
         const roomId = socketRooms.get(socket.id);
@@ -249,10 +263,6 @@ io.on("connection", (socket) => {
         // 시체 먹기 처리 (여기선 단순히 알림만)
         io.to(roomId).emit("corpseEaten", { targetId });
         console.log(`🟢 ${targetId}의 시체가 먹힘`);
-    });
-
-    socket.on("fishing", (data) => {
-        // TODO: fishing 이벤트 처리 로직 구현
     });
 
     function broadcastRoomPlayerCount(roomId) {

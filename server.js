@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 
+const playerRoles = {};
 const players = {};
 const socketRooms = new Map();
 const roomList = [];
@@ -75,7 +76,8 @@ io.on("connection", (socket) => {
             socket.emit("errorStart", { message: "방장만 시작할 수 있습니다." });
             return;
         }
-
+        
+        assignRoles(roomId);
         io.to(roomId).emit("gameStarted");
         console.log(`게임 시작: 방 ${roomId}`);
     });
@@ -285,6 +287,20 @@ io.on("connection", (socket) => {
             io.to(roomId).emit("hostChanged", { hostId: newHostId });
             console.log(`🟢 방장 승계: ${newHostId}`);
         }
+    }
+
+    function assignRoles(roomId) {
+        const socketsInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+        const shuffled = socketsInRoom.sort(() => Math.random() - 0.5);
+        const imposters = shuffled.slice(0, 1); // 1명만 범인으로 지정
+
+        for (const sid of socketsInRoom) {
+            const role = imposters.includes(sid) ? "Imposter" : "Crew";
+            playerRoles[sid] = role;
+            io.to(sid).emit("assignRole", { role });
+        }
+
+        console.log(`역할 지정 완료 [${roomId}]:`, playerRoles);
     }
 });
 

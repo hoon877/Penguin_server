@@ -152,6 +152,7 @@ io.on("connection", (socket) => {
             const roomObj = roomList.find(r => r.roomId === roomId);
             if (roomObj) {
                 roomObj.current--;
+                notifyPlayerLeft(roomId, socket.id);
 
                 // ⭐ 방장 나감 → 새로운 방장 지정
                 if (roomObj.hostId === socket.id) {
@@ -181,6 +182,7 @@ io.on("connection", (socket) => {
         const roomObj = roomList.find(r => r.roomId === roomId);
         if (roomObj) {
             roomObj.current--;
+            notifyPlayerLeft(roomId, socket.id);
             
             // ⭐ 방장 나감 → 새로운 방장 지정
             if (roomObj.hostId === socket.id) {
@@ -233,6 +235,7 @@ io.on("connection", (socket) => {
         io.to(roomId).emit("killed", { victimId: targetId, killerId: socket.id });
         console.log("🟩 킬 성공:", socket.id, "→", targetId);
         console.log(` ${socket.id} → ${targetId}`);
+        checkGameOver(roomId);
     });
 
     socket.on("hungerDeath", (data) => {
@@ -247,6 +250,7 @@ io.on("connection", (socket) => {
             victimId: playerId,
             killerId: null // 자연사이므로 killer 없음
         });
+        checkGameOver(roomId);
     });
 
     socket.on("eatCorpse", (data) => {
@@ -297,10 +301,56 @@ io.on("connection", (socket) => {
         for (const sid of socketsInRoom) {
             const role = imposters.includes(sid) ? "Imposter" : "Crew";
             playerRoles[sid] = role;
+            if (players[sid]) {
+                players[sid].isAlive = true;
+            }
             io.to(sid).emit("assignRole", { role });
         }
 
         console.log(`역할 지정 완료 [${roomId}]:`, playerRoles);
+    }
+
+    function checkGameOver(roomId) {
+        const socketsInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+
+        let aliveImposters = 0;
+        let aliveCrews = 0;
+
+        for (const sid of socketsInRoom) {
+            const role = playerRoles[sid];
+            const player = players[sid];
+            if (!player || !role) continue;
+
+            if (!player.isAlive) continue;
+
+            if (role === "Imposter") aliveImposters++;
+            else if (role === "Crew") aliveCrews++;
+        }
+
+        // 게임 종료 조건 검사
+        if (aliveImposters === 0) {
+            io.to(roomId).emit("gameEnded", { winner: "Crew" });
+            console.log(`🎉 게임 종료 (Crew 승리): ${roomId}`);
+            resetPlayersInRoom(roomId);
+        } else if (aliveCrews === 0) {
+            io.to(roomId).emit("gameEnded", { winner: "Imposter" });
+            console.log(`🎉 게임 종료 (Imposter 승리): ${roomId}`);
+            resetPlayersInRoom(roomId);
+        }
+    }
+
+    // 게임 종료 후 방 내 상태 초기화
+    function resetPlayersInRoom(roomId) {
+        const socketsInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+        for (const sid of socketsInRoom) {
+            if (players[sid]) {
+                players[sid].isAlive = true;
+            }
+        }
+    }
+
+    function notifyPlayerLeft(roomId, playerId) {
+        io.to(roomId).emit("playerLeft", { playerId });
     }
 });
 
